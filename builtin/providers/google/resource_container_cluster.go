@@ -191,17 +191,36 @@ func resourceContainerCluster() *schema.Resource {
 					},
 				},
 			},
-			"node_config": &schema.Schema{
+
+			// TODO: Implement nodePools per https://cloud.google.com/container-engine/reference/rest/v1/projects.zones.clusters.nodePools#NodePool
+			//       Either this "node_pools" field or "node_config" and "initial_node_count" fields must exist, but not both (node_config + initial_node_count
+			//       will be used by the Container Engine API to create a default node pool.
+			"node_pools": &schema.Schema{
 				Type:     schema.TypeList,
 				Optional: true,
 				Computed: true,
 				ForceNew: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						"machine_type": &schema.Schema{
+						"name": &schema.Schema{
 							Type:     schema.TypeString,
-							Optional: true,
-							Computed: true,
+							Optional: false,
+							Computed: false,
+							ForceNew: true,
+						},
+
+						"config": nodeConfig,
+
+						"initial_node_count": &schema.Schema{
+							Type:     schema.TypeInt,
+							Required: true,
+							ForceNew: true,
+						},
+
+						"name": &schema.Schema{
+							Type:     schema.TypeString,
+							Optional: false,
+							Computed: false,
 							ForceNew: true,
 						},
 
@@ -232,6 +251,7 @@ func resourceContainerCluster() *schema.Resource {
 				},
 			},
 
+			"node_config": nodeConfig,
 			"node_version": &schema.Schema{
 				Type:     schema.TypeString,
 				Optional: true,
@@ -546,4 +566,45 @@ func flattenClusterNodeConfig(c *container.NodeConfig) []map[string]interface{} 
 	}
 
 	return config
+}
+
+var nodeConfig *schema.Schema = &schema.Schema{
+	Type:     schema.TypeList,
+	Optional: true,
+	Computed: true,
+	ForceNew: true,
+	Elem: &schema.Resource{
+		Schema: map[string]*schema.Schema{
+			"machine_type": &schema.Schema{
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+
+			"disk_size_gb": &schema.Schema{
+				Type:     schema.TypeInt,
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+				ValidateFunc: func(v interface{}, k string) (ws []string, errors []error) {
+					value := v.(int)
+
+					if value < 10 {
+						errors = append(errors, fmt.Errorf(
+							"%q cannot be less than 10", k))
+					}
+					return
+				},
+			},
+
+			"oauth_scopes": &schema.Schema{
+				Type:     schema.TypeList,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+				Optional: true,
+				Computed: true,
+				ForceNew: true,
+			},
+		},
+	},
 }
